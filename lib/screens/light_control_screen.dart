@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/providers/lighting_provider.dart';
 import 'package:reeflynk/screens/schedule_editor_screen.dart';
+import 'package:reeflynk/theme/app_theme.dart';
 
 class LightControlScreen extends StatelessWidget {
   final String lightId;
@@ -26,65 +28,103 @@ class LightControlScreen extends StatelessWidget {
           appBar: AppBar(
             title: Text(config.name),
             actions: [
-              // Online status
               Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Icon(
                   state.isOnline ? Icons.wifi : Icons.wifi_off,
-                  color: state.isOnline ? Colors.green : Colors.red,
+                  color: state.isOnline ? AppColors.success : AppColors.destructive,
+                  size: 20,
                 ),
               ),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             children: [
               // Mode selector
-              _ModeSelector(
-                currentMode: state.mode,
-                onModeChanged: (mode) => provider.setMode(lightId, mode),
-              ),
-              const SizedBox(height: 24),
-
-              // Master brightness
-              _BrightnessSlider(
-                label: 'Master Brightness',
-                value: state.master,
-                color: Colors.white,
-                enabled: state.mode != 'off',
-                onChanged: (value) => provider.setMasterBrightness(lightId, value),
-              ),
-              const SizedBox(height: 24),
-
-              // Channel sliders
-              Text(
-                'Channels',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
-              for (final channel in config.channels)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _ChannelSlider(
-                    channel: channel,
-                    value: _getChannelValue(state, channel.id),
-                    enabled: state.mode == 'manual',
-                    onChanged: (value) => provider.setChannel(lightId, channel.id, value),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _ModeSelector(
+                    currentMode: state.mode,
+                    onModeChanged: (mode) => provider.setMode(lightId, mode),
                   ),
                 ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 16),
 
-              const Divider(height: 32),
+              // Master brightness
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _BrightnessSlider(
+                    label: 'Master Brightness',
+                    value: state.master,
+                    color: AppColors.foreground,
+                    enabled: state.mode != 'off',
+                    onChanged: (value) => provider.setMasterBrightness(lightId, value),
+                  ),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 100.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 16),
+
+              // Channel sliders
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Channels',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      for (final channel in config.channels)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _ChannelSlider(
+                            channel: channel,
+                            value: _getChannelValue(state, channel.id),
+                            enabled: state.mode == 'manual',
+                            onChanged: (value) => provider.setChannel(lightId, channel.id, value),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 200.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 16),
 
               // Schedule section
               _ScheduleSection(
                 lightId: lightId,
                 state: state,
-              ),
-
-              const Divider(height: 32),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 300.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 16),
 
               // Status section
-              _StatusSection(state: state),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _StatusSection(state: state),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 400.ms)
+                  .slideY(begin: 0.1, end: 0),
             ],
           ),
         );
@@ -123,28 +163,31 @@ class _ModeSelector extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(
-              value: 'off',
-              label: Text('Off'),
-              icon: Icon(Icons.power_settings_new),
-            ),
-            ButtonSegment(
-              value: 'schedule',
-              label: Text('Schedule'),
-              icon: Icon(Icons.schedule),
-            ),
-            ButtonSegment(
-              value: 'manual',
-              label: Text('Manual'),
-              icon: Icon(Icons.touch_app),
-            ),
-          ],
-          selected: {currentMode},
-          onSelectionChanged: (selection) {
-            onModeChanged(selection.first);
-          },
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'off',
+                label: Text('Off'),
+                icon: Icon(Icons.power_settings_new),
+              ),
+              ButtonSegment(
+                value: 'schedule',
+                label: Text('Schedule'),
+                icon: Icon(Icons.schedule),
+              ),
+              ButtonSegment(
+                value: 'manual',
+                label: Text('Manual'),
+                icon: Icon(Icons.touch_app),
+              ),
+            ],
+            selected: {currentMode},
+            onSelectionChanged: (selection) {
+              onModeChanged(selection.first);
+            },
+          ),
         ),
       ],
     );
@@ -206,9 +249,9 @@ class _BrightnessSliderState extends State<_BrightnessSlider> {
         const SizedBox(height: 8),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: widget.enabled ? widget.color : Colors.grey,
+            activeTrackColor: widget.enabled ? widget.color : AppColors.mutedFg,
             inactiveTrackColor: widget.color.withOpacity(0.2),
-            thumbColor: widget.enabled ? widget.color : Colors.grey,
+            thumbColor: widget.enabled ? widget.color : AppColors.mutedFg,
           ),
           child: Slider(
             value: _localValue,
@@ -306,9 +349,9 @@ class _ChannelSliderState extends State<_ChannelSlider> {
         const SizedBox(height: 4),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: widget.enabled ? color : Colors.grey,
+            activeTrackColor: widget.enabled ? color : AppColors.mutedFg,
             inactiveTrackColor: color.withOpacity(0.2),
-            thumbColor: widget.enabled ? color : Colors.grey,
+            thumbColor: widget.enabled ? color : AppColors.mutedFg,
           ),
           child: Slider(
             value: _localValue,
@@ -334,9 +377,7 @@ class _ChannelSliderState extends State<_ChannelSlider> {
         if (!widget.enabled)
           Text(
             'Switch to Manual mode to adjust channels',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey,
-                ),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
       ],
     );
@@ -485,9 +526,9 @@ class _StatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     Color? color;
     if (critical) {
-      color = Colors.red;
+      color = AppColors.destructive;
     } else if (warning) {
-      color = Colors.orange;
+      color = AppColors.warning;
     }
 
     return Row(

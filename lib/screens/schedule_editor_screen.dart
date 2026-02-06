@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/providers/lighting_provider.dart';
+import 'package:reeflynk/theme/app_theme.dart';
 
 class ScheduleEditorScreen extends StatefulWidget {
   final String lightId;
@@ -26,7 +28,6 @@ class _ScheduleEditorScreenState extends State<ScheduleEditorScreen> {
         final config = provider.getLightConfig(widget.lightId);
         final state = provider.getLightState(widget.lightId);
 
-        // Initialize from current state on first build
         if (!_initialized) {
           final schedule = state.schedule;
           _onHour = (schedule['onHour'] as num?)?.toInt() ?? 20;
@@ -48,9 +49,8 @@ class _ScheduleEditorScreenState extends State<ScheduleEditorScreen> {
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             children: [
-              // Light On Time
               _TimePicker(
                 label: 'Light On Time',
                 icon: Icons.wb_sunny,
@@ -62,10 +62,12 @@ class _ScheduleEditorScreenState extends State<ScheduleEditorScreen> {
                     _onMinute = minute;
                   });
                 },
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms)
+                  .slideY(begin: 0.1, end: 0),
               const SizedBox(height: 24),
 
-              // Light Off Time
               _TimePicker(
                 label: 'Light Off Time',
                 icon: Icons.nightlight,
@@ -77,85 +79,99 @@ class _ScheduleEditorScreenState extends State<ScheduleEditorScreen> {
                     _offMinute = minute;
                   });
                 },
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 100.ms)
+                  .slideY(begin: 0.1, end: 0),
               const SizedBox(height: 32),
 
-              // Ramp Duration
-              Text(
-                'Sunrise/Sunset Ramp Duration',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'How long to fade the lights on/off',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: _rampMinutes.toDouble(),
-                      min: 0,
-                      max: 120,
-                      divisions: 24,
-                      label: '$_rampMinutes min',
-                      onChanged: (value) {
-                        setState(() {
-                          _rampMinutes = value.round();
-                        });
-                      },
-                    ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sunrise/Sunset Ramp Duration',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'How long to fade the lights on/off',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _rampMinutes.toDouble(),
+                              min: 0,
+                              max: 120,
+                              divisions: 24,
+                              label: '$_rampMinutes min',
+                              onChanged: (value) {
+                                setState(() {
+                                  _rampMinutes = value.round();
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 60,
+                            child: Text(
+                              '$_rampMinutes min',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      '$_rampMinutes min',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 200.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 24),
 
-              // Preview card
               _SchedulePreview(
                 onHour: _onHour,
                 onMinute: _onMinute,
                 offHour: _offHour,
                 offMinute: _offMinute,
                 rampMinutes: _rampMinutes,
-              ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 300.ms)
+                  .slideY(begin: 0.1, end: 0),
 
               const SizedBox(height: 24),
 
-              // Refugium-specific note
               if (widget.lightId == 'refugium')
                 Card(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                  color: AppColors.accent,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         Icon(
                           Icons.info_outline,
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: AppColors.primary,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'Refugium lights typically run opposite to display lights to help stabilize pH overnight.',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            ),
+                            style: TextStyle(color: AppColors.foreground),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms, delay: 400.ms),
             ],
           ),
         );
@@ -223,12 +239,13 @@ class _TimePicker extends StatelessWidget {
         const SizedBox(height: 12),
         InkWell(
           onTap: () => _showTimePicker(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).colorScheme.outline),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.card,
+              border: Border.all(color: AppTheme.borderColor),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -238,7 +255,7 @@ class _TimePicker extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.edit, size: 20),
+                Icon(Icons.edit, size: 20, color: AppColors.mutedFg),
               ],
             ),
           ),
@@ -288,7 +305,6 @@ class _SchedulePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate ramp times
     final rampUpStart = _subtractMinutes(onHour, onMinute, rampMinutes);
     final rampDownEnd = _addMinutes(offHour, offMinute, rampMinutes);
 
@@ -381,20 +397,20 @@ class _TimelineRow extends StatelessWidget {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: AppColors.primary.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 14,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                color: AppColors.primary,
               ),
             ),
             if (!isLast)
               Container(
                 width: 2,
                 height: 20,
-                color: Theme.of(context).colorScheme.outline,
+                color: AppTheme.borderColor,
               ),
           ],
         ),

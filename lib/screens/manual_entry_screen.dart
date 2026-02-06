@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/services/database_service.dart';
+import 'package:reeflynk/theme/app_theme.dart';
 
 class ManualEntryScreen extends StatefulWidget {
   const ManualEntryScreen({super.key});
@@ -15,7 +17,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   var _isLoading = false;
 
   final Map<String, String> _sensorLabels = {
-    'temperature': 'Temperature (°F)',
+    'temperature': 'Temperature (\u00b0F)',
     'ph': 'pH',
     'alkalinity': 'Alkalinity (dKH)',
     'calcium': 'Calcium (ppm)',
@@ -25,6 +27,19 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
     'nitrate': 'Nitrate (ppm)',
     'nitrite': 'Nitrite (ppm)',
     'phosphate': 'Phosphate (ppm)',
+  };
+
+  final Map<String, String> _sensorHints = {
+    'temperature': 'Optimal: 76\u201378\u00b0F',
+    'ph': 'Optimal: 8.1\u20138.4',
+    'alkalinity': 'Optimal: 8\u201312 dKH',
+    'calcium': 'Optimal: 380\u2013450 ppm',
+    'magnesium': 'Optimal: 1250\u20131350 ppm',
+    'orp': 'Optimal: 300\u2013450 mV',
+    'ammonia': 'Optimal: 0 ppm',
+    'nitrate': 'Optimal: 1\u201310 ppm',
+    'nitrite': 'Optimal: 0 ppm',
+    'phosphate': 'Optimal: 0.03\u20130.1 ppm',
   };
 
   @override
@@ -90,81 +105,74 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manual Data Entry'),
       ),
-      body: StreamBuilder<Map<String, String>>(
-        stream: context.read<DatabaseService>().getSensorModesStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final sensorModes = snapshot.data ?? {};
-          final manualSensors = _sensorLabels.keys
-              .where((sensorName) => sensorModes[sensorName] == 'manual')
-              .toList();
-
-          if (manualSensors.isEmpty) {
-            return const Center(
-              child: Text('No sensors are in "manual" mode. Go to the "Controls" screen to enable manual entry.'),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                children: [
-                  ...manualSensors.map((sensorName) {
-                    return _buildTextFormField(
-                      controller: _controllers[sensorName]!,
-                      labelText: _sensorLabels[sensorName]!,
-                    );
-                  }),
-                  const SizedBox(height: 20),
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else
-                    ElevatedButton(
-                      onPressed: _saveData,
-                      child: const Text('Save Data'),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTextFormField({
-    required TextEditingController controller,
-    required String labelText,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: labelText,
-          border: const OutlineInputBorder(),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Enter Readings',
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      ..._sensorLabels.keys.map((sensorName) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TextFormField(
+                            controller: _controllers[sensorName]!,
+                            decoration: InputDecoration(
+                              labelText: _sensorLabels[sensorName]!,
+                              helperText: _sensorHints[sensorName],
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (value) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  double.tryParse(value) == null) {
+                                return 'Please enter a valid number';
+                              }
+                              return null;
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms)
+                  .slideY(begin: 0.1, end: 0),
+              const SizedBox(height: 20),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                FilledButton(
+                  onPressed: _saveData,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Save Data'),
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms, delay: 100.ms)
+                    .slideY(begin: 0.1, end: 0),
+            ],
+          ),
         ),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        validator: (value) {
-          if (value != null &&
-              value.isNotEmpty &&
-              double.tryParse(value) == null) {
-            return 'Please enter a valid number';
-          }
-          return null;
-        },
       ),
     );
   }

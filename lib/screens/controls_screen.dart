@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/services/database_service.dart';
 
@@ -10,7 +11,6 @@ class ControlsScreen extends StatefulWidget {
 }
 
 class _ControlsScreenState extends State<ControlsScreen> {
-  // A predefined list of all sensors
   final List<String> _sensors = [
     'temperature',
     'ph',
@@ -23,6 +23,7 @@ class _ControlsScreenState extends State<ControlsScreen> {
     'nitrite',
     'phosphate',
   ];
+  Map<String, String> _sensorModes = {};
 
   Future<void> _showBulkEditDialog() async {
     return showDialog<void>(
@@ -73,6 +74,8 @@ class _ControlsScreenState extends State<ControlsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sensor Modes'),
@@ -86,34 +89,67 @@ class _ControlsScreenState extends State<ControlsScreen> {
       body: StreamBuilder<Map<String, String>>(
         stream: context.read<DatabaseService>().getSensorModesStream(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting && _sensorModes.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final sensorModes = snapshot.data ?? {};
+          if (snapshot.hasData) {
+            _sensorModes = snapshot.data!;
+          }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(24),
             itemCount: _sensors.length,
             itemBuilder: (context, index) {
               final sensorName = _sensors[index];
-              final currentMode = sensorModes[sensorName] ?? 'auto'; // Default to auto
+              final currentMode = _sensorModes[sensorName] ?? 'auto';
               final isManual = currentMode == 'manual';
 
-              return ListTile(
-                title: Text(sensorName[0].toUpperCase() + sensorName.substring(1)),
-                subtitle: Text('Mode: $currentMode'),
-                trailing: Switch(
-                  value: isManual,
-                  onChanged: (bool value) {
-                    final newMode = value ? 'manual' : 'auto';
-                    context
-                        .read<DatabaseService>()
-                        .updateSensorMode(sensorName, newMode);
-                  },
-                ),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                sensorName[0].toUpperCase() + sensorName.substring(1),
+                                style: theme.textTheme.titleSmall,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Mode: $currentMode',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: isManual,
+                          onChanged: (bool value) {
+                            final newMode = value ? 'manual' : 'auto';
+                            setState(() {
+                              _sensorModes[sensorName] = newMode;
+                            });
+                            context
+                                .read<DatabaseService>()
+                                .updateSensorMode(sensorName, newMode);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: (index * 50).ms)
+                    .slideX(begin: 0.05, end: 0),
               );
             },
           );

@@ -133,7 +133,7 @@ class LightingProvider extends ChangeNotifier {
 
     _databaseService = service;
 
-    if (service != null && service.uid != null) {
+    if (service != null) {
       _subscribeToLights();
     }
   }
@@ -150,24 +150,8 @@ class LightingProvider extends ChangeNotifier {
   }
 
   void _subscribeToLights() {
-    for (final light in lights) {
-      // Subscribe to status (from ESP32)
-      _statusSubscriptions[light.id] = _databaseService!
-          .getLightStatusStream(light.id)
-          .listen((status) {
-        _lightStates[light.id] = LightState.fromStatus(status);
-        notifyListeners();
-      });
-
-      // Subscribe to state (commands) to get schedule
-      _stateSubscriptions[light.id] = _databaseService!
-          .getLightStateStream(light.id)
-          .listen((state) {
-        final current = _lightStates[light.id] ?? LightState();
-        _lightStates[light.id] = current.copyWithState(state);
-        notifyListeners();
-      });
-    }
+    // Lighting control is not yet implemented.
+    // Subscriptions will be added when the lighting backend is ready.
   }
 
   LightState getLightState(String lightId) {
@@ -182,19 +166,10 @@ class LightingProvider extends ChangeNotifier {
     }
   }
 
-  // Control methods
-  Future<void> setMode(String lightId, String mode) async {
-    await _databaseService?.setLightMode(lightId, mode);
-  }
-
-  Future<void> setChannel(String lightId, String channel, int intensity) async {
-    await _databaseService?.setLightChannel(lightId, channel, intensity);
-  }
-
-  Future<void> setMasterBrightness(String lightId, int brightness) async {
-    await _databaseService?.setLightMasterBrightness(lightId, brightness);
-  }
-
+  // Control methods — not yet implemented
+  Future<void> setMode(String lightId, String mode) async {}
+  Future<void> setChannel(String lightId, String channel, int intensity) async {}
+  Future<void> setMasterBrightness(String lightId, int brightness) async {}
   Future<void> setSchedule(
     String lightId, {
     required int onHour,
@@ -202,16 +177,7 @@ class LightingProvider extends ChangeNotifier {
     required int offHour,
     required int offMinute,
     required int rampMinutes,
-  }) async {
-    await _databaseService?.setLightSchedule(
-      lightId,
-      onHour: onHour,
-      onMinute: onMinute,
-      offHour: offHour,
-      offMinute: offMinute,
-      rampMinutes: rampMinutes,
-    );
-  }
+  }) async {}
 
   @override
   void dispose() {

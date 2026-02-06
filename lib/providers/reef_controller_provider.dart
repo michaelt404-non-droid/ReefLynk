@@ -59,17 +59,13 @@ class ReefControllerProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         setActiveIpAddress(ip);
         setIsConnected(true);
-        print('Connected to manual IP: $ip');
       } else {
         setActiveIpAddress(null);
         setIsConnected(false);
-        print(
-            'Failed to connect to manual IP $ip: Status code ${response.statusCode}');
       }
     } catch (e) {
       setActiveIpAddress(null);
       setIsConnected(false);
-      print('Failed to connect to manual IP $ip: $e');
     }
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:reeflynk/services/auth_service.dart';
+import 'package:reeflynk/theme/app_theme.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -38,14 +40,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      await authService.signUpWithEmail(
+      final response = await authService.signUpWithEmail(
         _emailController.text.trim(),
         _passwordController.text,
       );
-      // Auth state will change automatically, navigating to main screen
-    } on FirebaseAuthException catch (e) {
+
+      if (mounted && response.user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Success! Please check your email to confirm your account.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } on AuthException catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = e.message;
       });
     } catch (e) {
       setState(() {
@@ -60,23 +71,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'weak-password':
-        return 'Password is too weak. Use at least 6 characters.';
-      case 'operation-not-allowed':
-        return 'Email/password accounts are not enabled.';
-      default:
-        return 'Sign up failed. Please try again.';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Account'),
@@ -93,31 +91,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 children: [
                   Text(
                     'Join ReefLynk',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: theme.textTheme.headlineMedium,
                     textAlign: TextAlign.center,
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 600.ms)
+                      .slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 8),
                   Text(
                     'Create an account to monitor your reef',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.grey,
-                        ),
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: AppColors.mutedFg,
+                    ),
                     textAlign: TextAlign.center,
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: 100.ms)
+                      .slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 32),
                   if (_errorMessage != null) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: AppColors.destructive.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.destructive.withOpacity(0.3)),
                       ),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
+                        style: const TextStyle(color: AppColors.destructive),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -129,7 +131,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     autocorrect: false,
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     validator: (value) {
@@ -141,14 +142,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                       return null;
                     },
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 200.ms)
+                      .slideY(begin: 0.15, end: 0),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock_outlined),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -172,14 +175,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                       return null;
                     },
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 300.ms)
+                      .slideY(begin: 0.15, end: 0),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
                     decoration: InputDecoration(
                       labelText: 'Confirm Password',
-                      border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock_outlined),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -203,7 +208,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                       return null;
                     },
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 400.ms)
+                      .slideY(begin: 0.15, end: 0),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: _isLoading ? null : _signUp,
@@ -214,15 +222,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primaryFg,
+                            ),
                           )
                         : const Text('Create Account'),
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 500.ms)
+                      .slideY(begin: 0.15, end: 0),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Already have an account?'),
+                      const Text(
+                        'Already have an account?',
+                        style: TextStyle(color: AppColors.mutedFg),
+                      ),
                       TextButton(
                         onPressed: () {
                           Navigator.pop(context);
@@ -230,7 +247,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         child: const Text('Sign In'),
                       ),
                     ],
-                  ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 600.ms),
                 ],
               ),
             ),

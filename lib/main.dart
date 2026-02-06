@@ -1,51 +1,50 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'dart:ui';
-import 'package:reeflynk/firebase_options.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:reeflynk/config/feature_flags.dart';
 import 'package:reeflynk/services/auth_service.dart';
 import 'package:reeflynk/providers/reef_controller_provider.dart';
-import 'package:reeflynk/screens/dashboard_screen.dart';
+import 'package:reeflynk/screens/manual_entry_screen.dart';
 import 'package:reeflynk/screens/settings_screen.dart';
 import 'package:reeflynk/services/database_service.dart';
 import 'package:reeflynk/screens/charts_screen.dart';
 import 'package:reeflynk/screens/sign_in_screen.dart';
 import 'package:reeflynk/screens/lighting_screen.dart';
+import 'package:reeflynk/screens/maintenance_screen.dart';
+import 'package:reeflynk/screens/livestock_screen.dart';
 import 'package:reeflynk/providers/lighting_provider.dart';
+import 'package:reeflynk/services/notification_service.dart';
+import 'package:reeflynk/services/maintenance_scheduler.dart';
+import 'package:reeflynk/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Supabase.initialize(
+    url: 'https://ueeqgqqthiwcrvopdkft.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlZXFncXF0aGl3Y3J2b3Bka2Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4OTkyMDAsImV4cCI6MjA4NTQ3NTIwMH0.dtQWdz87vhv2ZW0aLf-K4e1sucH8g82PHacJVmse7vw',
+  );
 
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+  await NotificationService().initialize();
 
   runApp(
     MultiProvider(
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
         StreamProvider<User?>(
-          create: (context) => context.read<AuthService>().authStateChanges,
-          initialData: null,
+          create: (context) =>
+              Supabase.instance.client.auth.onAuthStateChange.map((event) => event.session?.user),
+          initialData: Supabase.instance.client.auth.currentUser,
         ),
-        ChangeNotifierProvider(create: (context) => ReefControllerProvider()),
-        ProxyProvider<User?, DatabaseService>(
-          update: (context, user, previous) => DatabaseService(uid: user?.uid),
-        ),
-        ChangeNotifierProxyProvider<DatabaseService, LightingProvider>(
-          create: (context) => LightingProvider(),
-          update: (context, dbService, previous) {
-            previous?.updateDatabaseService(dbService);
-            return previous ?? LightingProvider()..updateDatabaseService(dbService);
-          },
-        ),
+        if (FeatureFlags.isControllerEnabled)
+          ChangeNotifierProvider(create: (context) => ReefControllerProvider()),
+    Provider<DatabaseService>(create: (_) => DatabaseService()),
+    ChangeNotifierProxyProvider<DatabaseService, LightingProvider>(
+            create: (context) => LightingProvider(),
+            update: (context, dbService, previous) {
+              previous?.updateDatabaseService(dbService);
+              return previous ?? LightingProvider()..updateDatabaseService(dbService);
+            },
+          ),
       ],
       child: const MyApp(),
     ),
@@ -59,13 +58,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ReefLynk',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.darkTheme,
       home: const AuthWrapper(),
     );
   }
@@ -76,15 +69,14 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firebaseUser = context.watch<User?>();
+    final user = context.watch<User?>();
 
-    if (firebaseUser != null) {
+    if (user != null) {
       return const MainScreen();
     }
     return const SignInScreen();
   }
 }
-
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -95,23 +87,45 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  late final ReefControllerProvider _reefControllerProvider;
-
-  static final List<Widget> _widgetOptions = <Widget>[
-    const DashboardScreen(),
-    ChartsScreen(),
-    const LightingScreen(),
-    const SettingsScreen(),
-  ];
 
   @override
   void initState() {
     super.initState();
-    _reefControllerProvider = context.read<ReefControllerProvider>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _reefControllerProvider.startDiscovery();
-    });
+    _initNotificationsAndReschedule();
   }
+
+  Future<void> _initNotificationsAndReschedule() async {
+    await NotificationService().requestPermissions();
+    // Reschedule all maintenance notifications on app open
+    final db = Provider.of<DatabaseService>(context, listen: false);
+    try {
+      final tasks = await db.getMaintenanceTasksStream().first;
+      final completions = await db.getLatestCompletions();
+      await NotificationService().cancelAllReminders();
+      for (final task in tasks) {
+        if (task.id == null) continue;
+        final lastCompletion = completions[task.id];
+        final reminderTime =
+            MaintenanceScheduler.getReminderTime(task, lastCompletion);
+        await NotificationService().scheduleMaintenanceReminder(
+          taskId: task.id!,
+          taskName: task.name,
+          scheduledDate: reminderTime,
+        );
+      }
+    } catch (_) {
+      // Silently fail — notifications are best-effort
+    }
+  }
+
+  static final List<Widget> _widgetOptions = <Widget>[
+    const ManualEntryScreen(),
+    const ChartsScreen(),
+    const MaintenanceScreen(),
+    const LivestockScreen(),
+    if (FeatureFlags.isLightingEnabled) const LightingScreen(),
+    const SettingsScreen(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -125,44 +139,60 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('ReefLynk'),
         actions: [
-          Consumer<ReefControllerProvider>(
-            builder: (context, reefControllerProvider, child) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Icon(
-                  reefControllerProvider.isConnected ? Icons.wifi : Icons.wifi_off,
-                  color: reefControllerProvider.isConnected ? Colors.green : Colors.red,
-                ),
-              );
-            },
-          ),
+          if (FeatureFlags.isControllerEnabled)
+            Consumer<ReefControllerProvider>(
+              builder: (context, reefControllerProvider, child) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: Icon(
+                    reefControllerProvider.isConnected ? Icons.wifi : Icons.wifi_off,
+                    color: reefControllerProvider.isConnected
+                        ? AppColors.success
+                        : AppColors.destructive,
+                    size: 20,
+                  ),
+                );
+              },
+            ),
         ],
       ),
-      body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+      body: IndexedStack(index: _selectedIndex, children: _widgetOptions.where((widget) => widget != null).toList().cast<Widget>()),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _onItemTapped,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.edit_note_outlined),
+            selectedIcon: Icon(Icons.edit_note),
+            label: 'Log Data',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.show_chart),
+          NavigationDestination(
+            icon: Icon(Icons.show_chart_outlined),
+            selectedIcon: Icon(Icons.show_chart),
             label: 'Charts',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.lightbulb_outline),
-            label: 'Lighting',
+          NavigationDestination(
+            icon: Icon(Icons.build_outlined),
+            selectedIcon: Icon(Icons.build),
+            label: 'Maint.',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
+          NavigationDestination(
+            icon: Icon(Icons.pets_outlined),
+            selectedIcon: Icon(Icons.pets),
+            label: 'Livestock',
+          ),
+          if (FeatureFlags.isLightingEnabled)
+            NavigationDestination(
+              icon: Icon(Icons.lightbulb_outline),
+              selectedIcon: Icon(Icons.lightbulb),
+              label: 'Lighting',
+            ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
             label: 'Settings',
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
       ),
     );
   }
