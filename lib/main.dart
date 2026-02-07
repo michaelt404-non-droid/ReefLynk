@@ -16,6 +16,7 @@ import 'package:reeflynk/providers/lighting_provider.dart';
 import 'package:reeflynk/services/notification_service.dart';
 import 'package:reeflynk/services/maintenance_scheduler.dart';
 import 'package:reeflynk/theme/app_theme.dart';
+import 'package:reeflynk/screens/paywall_screen.dart'; // Corrected import position
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,10 +64,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-import 'package:reeflynk/screens/paywall_screen.dart'; // New import
-
-// ...
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
