@@ -64,15 +64,24 @@ class MyApp extends StatelessWidget {
   }
 }
 
+import 'package:reeflynk/screens/paywall_screen.dart'; // New import
+
+// ...
+
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<User?>();
+    final authService = context.read<AuthService>(); // Access AuthService
 
     if (user != null) {
-      return const MainScreen();
+      if (authService.isProUser) { // Check if user is pro
+        return const MainScreen();
+      } else {
+        return const PaywallScreen(); // Redirect to paywall if not pro
+      }
     }
     return const SignInScreen();
   }

@@ -4,8 +4,11 @@ class AuthService {
   final GoTrueClient _auth = Supabase.instance.client.auth;
 
   Stream<AuthState> get authStateChanges => _auth.onAuthStateChange;
+  Stream<User?> get userStream => _auth.onAuthStateChange.map((state) => state.session?.user);
 
   User? get currentUser => _auth.currentUser;
+
+  bool get isProUser => currentUser?.appMetadata?['pro'] ?? false;
 
   Future<AuthResponse> signInWithEmail(String email, String password) async {
     return await _auth.signInWithPassword(

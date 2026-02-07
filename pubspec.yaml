@@ -36,6 +36,7 @@ dependencies:
 
   # For state management
   provider: ^6.0.5
+  url_launcher: ^6.0.0
 
   cupertino_icons: ^1.0.2
   supabase_flutter: ^2.5.8
