@@ -241,8 +241,9 @@ class _ChartsViewState extends State<_ChartsView> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Data arrives newest-first; reverse to ascending for chart
-        final readings = snapshot.data!.reversed.toList();
+        // Data arrives newest-first; sort ascending by timestamp for chart
+        final readings = snapshot.data!.toList()
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
         if (readings.isEmpty) {
           return Center(
@@ -251,9 +252,16 @@ class _ChartsViewState extends State<_ChartsView> {
           );
         }
 
-        // Use timestamps for x-axis, normalized to keep values small
-        final baseMs =
-            readings.first.timestamp.millisecondsSinceEpoch.toDouble();
+        // Anchor x-axis to the selected time window, not the data extent
+        final now = DateTime.now();
+        final duration = _getDuration(_selectedRange);
+        final rangeStart = duration != null ? now.subtract(duration) : readings.first.timestamp;
+        final rangeEnd = now;
+
+        final baseMs = rangeStart.millisecondsSinceEpoch.toDouble();
+        final minX = 0.0;
+        final maxX = rangeEnd.millisecondsSinceEpoch.toDouble() - baseMs;
+
         final spots = readings.map((r) {
           return FlSpot(
             r.timestamp.millisecondsSinceEpoch.toDouble() - baseMs,
@@ -261,9 +269,8 @@ class _ChartsViewState extends State<_ChartsView> {
           );
         }).toList();
 
-        // Aim for ~5 labels on the x-axis
-        final timeSpanMs = spots.last.x - spots.first.x;
-        final bottomInterval = timeSpanMs > 0 ? timeSpanMs / 5 : 1.0;
+        // Aim for ~5 labels on the x-axis across the full time window
+        final bottomInterval = maxX > 0 ? maxX / 5 : 1.0;
 
         // Y-axis auto-scaling
         double highestValueInData =
@@ -350,6 +357,8 @@ class _ChartsViewState extends State<_ChartsView> {
                     rightTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),
                   ),
+                  minX: minX,
+                  maxX: maxX,
                   minY: minY,
                   maxY: effectiveMaxY,
                   borderData: FlBorderData(

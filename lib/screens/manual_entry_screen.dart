@@ -60,6 +60,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   }
 
   Future<void> _saveData() async {
+    FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -107,7 +108,9 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Manual Data Entry'),
       ),
@@ -138,6 +141,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                               helperText: _sensorHints[sensorName],
                             ),
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            textInputAction: TextInputAction.done,
                             validator: (value) {
                               if (value != null &&
                                   value.isNotEmpty &&
@@ -174,6 +178,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

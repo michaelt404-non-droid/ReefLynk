@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.reeflynk"
+    namespace = "com.mikeyt.reeflynk"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

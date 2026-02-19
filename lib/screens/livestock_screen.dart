@@ -7,12 +7,41 @@ import 'package:reeflynk/services/database_service.dart';
 import 'package:reeflynk/screens/livestock_form_screen.dart';
 import 'package:reeflynk/theme/app_theme.dart';
 
-class LivestockScreen extends StatelessWidget {
+class LivestockScreen extends StatefulWidget {
   const LivestockScreen({super.key});
 
   @override
+  State<LivestockScreen> createState() => _LivestockScreenState();
+}
+
+class _LivestockScreenState extends State<LivestockScreen> {
+  late Stream<List<Livestock>> _livestockStream;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _refreshStream();
+  }
+
+  void _refreshStream() {
+    final db = Provider.of<DatabaseService>(context, listen: false);
+    _livestockStream = db.getLivestockStream();
+  }
+
+  Future<void> _openForm({Livestock? item}) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LivestockFormScreen(existingItem: item),
+      ),
+    );
+    if (result == true && mounted) {
+      setState(() => _refreshStream());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final db = Provider.of<DatabaseService>(context);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -20,7 +49,7 @@ class LivestockScreen extends StatelessWidget {
         title: const Text('Livestock'),
       ),
       body: StreamBuilder<List<Livestock>>(
-        stream: db.getLivestockStream(),
+        stream: _livestockStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -66,7 +95,7 @@ class LivestockScreen extends StatelessWidget {
             children: [
               for (final entry in grouped.entries) ...[
                 _SectionHeader(title: entry.key, count: entry.value.fold(0, (sum, i) => sum + i.quantity)),
-                ...entry.value.map((item) => _LivestockCard(item: item)),
+                ...entry.value.map((item) => _LivestockCard(item: item, onTap: () => _openForm(item: item))),
                 const SizedBox(height: 12),
               ],
             ],
@@ -75,14 +104,7 @@ class LivestockScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: null,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const LivestockFormScreen(),
-            ),
-          );
-        },
+        onPressed: () => _openForm(),
         child: const Icon(Icons.add),
       ),
     );
@@ -143,8 +165,9 @@ class _SectionHeader extends StatelessWidget {
 
 class _LivestockCard extends StatelessWidget {
   final Livestock item;
+  final VoidCallback onTap;
 
-  const _LivestockCard({required this.item});
+  const _LivestockCard({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -155,14 +178,7 @@ class _LivestockCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => LivestockFormScreen(existingItem: item),
-            ),
-          );
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

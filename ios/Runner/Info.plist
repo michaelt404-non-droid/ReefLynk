@@ -49,5 +49,9 @@
 	<array>
 		<string>_http._tcp</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ReefLynk needs access to your photo library to add livestock photos</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ReefLynk needs camera access to take livestock photos</string>
 </dict>
 </plist>
