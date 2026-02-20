@@ -34,8 +34,7 @@ Future<void> main() async {
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     if (data.event == AuthChangeEvent.passwordRecovery) {
       passwordRecoveryNotifier.value = true;
-    } else if (data.event == AuthChangeEvent.userUpdated ||
-        data.event == AuthChangeEvent.signedIn) {
+    } else if (data.event == AuthChangeEvent.signedIn) {
       passwordRecoveryNotifier.value = false;
     }
   });

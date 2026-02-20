@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:reeflynk/main.dart' show passwordRecoveryNotifier;
 import 'package:reeflynk/theme/app_theme.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -34,11 +35,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully.')),
+          const SnackBar(content: Text('Password updated! Signing you in...')),
         );
+        // Brief pause so the user sees the success message before transitioning
+        await Future.delayed(const Duration(seconds: 2));
+        passwordRecoveryNotifier.value = false;
       }
     } on AuthException catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message)),
         );
