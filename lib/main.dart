@@ -19,12 +19,26 @@ import 'package:reeflynk/theme/app_theme.dart';
 import 'package:reeflynk/screens/paywall_screen.dart';
 import 'package:reeflynk/screens/reset_password_screen.dart';
 
+// Global notifier so the recovery event is never missed regardless of when
+// the widget tree subscribes.
+final ValueNotifier<bool> passwordRecoveryNotifier = ValueNotifier(false);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: 'https://ueeqgqqthiwcrvopdkft.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlZXFncXF0aGl3Y3J2b3Bka2Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4OTkyMDAsImV4cCI6MjA4NTQ3NTIwMH0.dtQWdz87vhv2ZW0aLf-K4e1sucH8g82PHacJVmse7vw',
   );
+
+  // Subscribe before runApp so we never miss the passwordRecovery event.
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    if (data.event == AuthChangeEvent.passwordRecovery) {
+      passwordRecoveryNotifier.value = true;
+    } else if (data.event == AuthChangeEvent.userUpdated ||
+        data.event == AuthChangeEvent.signedIn) {
+      passwordRecoveryNotifier.value = false;
+    }
+  });
 
   await NotificationService().initialize();
 
@@ -66,46 +80,26 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatefulWidget {
+class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  bool _isPasswordRecovery = false;
-
-  @override
-  void initState() {
-    super.initState();
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (!mounted) return;
-      if (data.event == AuthChangeEvent.passwordRecovery) {
-        setState(() => _isPasswordRecovery = true);
-      } else if (data.event == AuthChangeEvent.userUpdated) {
-        setState(() => _isPasswordRecovery = false);
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isPasswordRecovery) {
-      return const ResetPasswordScreen();
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: passwordRecoveryNotifier,
+      builder: (context, isRecovery, _) {
+        if (isRecovery) return const ResetPasswordScreen();
 
-    final user = context.watch<User?>();
-    final authService = context.read<AuthService>();
+        final user = context.watch<User?>();
+        final authService = context.read<AuthService>();
 
-    if (user != null) {
-      if (authService.isProUser) {
-        return const MainScreen();
-      } else {
-        return const PaywallScreen();
-      }
-    }
-    return const SignInScreen();
+        if (user != null) {
+          if (authService.isProUser) return const MainScreen();
+          return const PaywallScreen();
+        }
+        return const SignInScreen();
+      },
+    );
   }
 }
 
