@@ -16,7 +16,8 @@ import 'package:reeflynk/providers/lighting_provider.dart';
 import 'package:reeflynk/services/notification_service.dart';
 import 'package:reeflynk/services/maintenance_scheduler.dart';
 import 'package:reeflynk/theme/app_theme.dart';
-import 'package:reeflynk/screens/paywall_screen.dart'; // Corrected import position
+import 'package:reeflynk/screens/paywall_screen.dart';
+import 'package:reeflynk/screens/reset_password_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,19 +66,43 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isPasswordRecovery = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (!mounted) return;
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        setState(() => _isPasswordRecovery = true);
+      } else if (data.event == AuthChangeEvent.userUpdated) {
+        setState(() => _isPasswordRecovery = false);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isPasswordRecovery) {
+      return const ResetPasswordScreen();
+    }
+
     final user = context.watch<User?>();
-    final authService = context.read<AuthService>(); // Access AuthService
+    final authService = context.read<AuthService>();
 
     if (user != null) {
-      if (authService.isProUser) { // Check if user is pro
+      if (authService.isProUser) {
         return const MainScreen();
       } else {
-        return const PaywallScreen(); // Redirect to paywall if not pro
+        return const PaywallScreen();
       }
     }
     return const SignInScreen();

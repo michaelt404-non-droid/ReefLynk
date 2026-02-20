@@ -29,6 +29,9 @@ class AuthService {
   }
 
   Future<void> resetPassword(String email) async {
-    await _auth.resetPasswordForEmail(email);
+    await _auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'https://reef-lynk-web.vercel.app',
+    );
   }
 }
