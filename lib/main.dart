@@ -19,6 +19,7 @@ import 'package:reeflynk/services/maintenance_scheduler.dart';
 import 'package:reeflynk/theme/app_theme.dart';
 import 'package:reeflynk/screens/paywall_screen.dart';
 import 'package:reeflynk/screens/reset_password_screen.dart';
+import 'package:reeflynk/services/purchase_service.dart';
 
 // Global notifier so the recovery event is never missed regardless of when
 // the widget tree subscribes.
@@ -55,9 +56,13 @@ Future<void> main() async {
 
   await NotificationService().initialize();
 
+  final purchaseService = PurchaseService();
+  await purchaseService.initialize();
+
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider<PurchaseService>.value(value: purchaseService),
         Provider<AuthService>(create: (_) => AuthService()),
         StreamProvider<User?>(
           create: (context) =>

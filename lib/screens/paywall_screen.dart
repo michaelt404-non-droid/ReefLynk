@@ -1,17 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:reeflynk/services/purchase_service.dart';
 
 class PaywallScreen extends StatelessWidget {
   const PaywallScreen({super.key});
 
-  final String lemonSqueezyCheckoutUrl = 'https://jachin.lemonsqueezy.com/checkout/buy/e81b8c72-205b-4e60-a938-23864ed039a6';
+  static const String _lemonSqueezyUrl =
+      'https://jachin.lemonsqueezy.com/checkout/buy/e81b8c72-205b-4e60-a938-23864ed039a6';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('ReefLynk Pro'),
-        automaticallyImplyLeading: false, // Prevent back button
+        automaticallyImplyLeading: false,
       ),
       body: Center(
         child: Padding(
@@ -44,41 +49,115 @@ class PaywallScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 48),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final uri = Uri.parse(lemonSqueezyCheckoutUrl);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not open checkout page.')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.shopping_cart),
-                label: const Text(
-                  'Upgrade to Pro',
-                  style: TextStyle(fontSize: 18),
-                ),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50), // Full width button
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  // TODO: Implement restore purchase logic
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Restore purchase not yet implemented.')),
-                  );
-                },
-                child: const Text('Restore Purchase'),
-              ),
+              if (kIsWeb)
+                _buildWebCheckout(context)
+              else
+                _buildNativeIAP(context),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWebCheckout(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        final uri = Uri.parse(_lemonSqueezyUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open checkout page.')),
+          );
+        }
+      },
+      icon: const Icon(Icons.shopping_cart),
+      label: const Text(
+        'Upgrade to Pro',
+        style: TextStyle(fontSize: 18),
+      ),
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 50),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildNativeIAP(BuildContext context) {
+    return Consumer<PurchaseService>(
+      builder: (context, purchaseService, _) {
+        if (purchaseService.errorMessage != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(purchaseService.errorMessage!)),
+            );
+            purchaseService.errorMessage = null;
+          });
+        }
+
+        if (purchaseService.isLoading) {
+          return const CircularProgressIndicator();
+        }
+
+        if (!purchaseService.isAvailable) {
+          return const Text(
+            'In-app purchases are not available on this device.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          );
+        }
+
+        if (purchaseService.products.isEmpty) {
+          return Column(
+            children: [
+              const Text(
+                'Could not load subscription options. Please try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => purchaseService.loadProducts(),
+                child: const Text('Retry'),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            ...purchaseService.products.map((product) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ElevatedButton(
+                    onPressed: () => purchaseService.buyProduct(product),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          product.title,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          product.price,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                )),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => purchaseService.restorePurchases(),
+              child: const Text('Restore Purchase'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
