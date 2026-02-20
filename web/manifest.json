@@ -1,11 +1,11 @@
 {
-    "name": "reeflynk",
-    "short_name": "reeflynk",
+    "name": "ReefLynk",
+    "short_name": "ReefLynk",
+    "description": "Track water parameters, schedule maintenance, and manage your reef aquarium.",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#141525",
+    "theme_color": "#7C6AED",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
