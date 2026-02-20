@@ -25,17 +25,30 @@ final ValueNotifier<bool> passwordRecoveryNotifier = ValueNotifier(false);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // On web: detect recovery flow BEFORE Supabase processes the URL hash.
+  if (kIsWeb) {
+    final fragment = Uri.splitQueryString(Uri.base.fragment);
+    final query = Uri.base.queryParameters;
+    if (fragment['type'] == 'recovery' || query['type'] == 'recovery') {
+      passwordRecoveryNotifier.value = true;
+    }
+  }
+
   await Supabase.initialize(
     url: 'https://ueeqgqqthiwcrvopdkft.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlZXFncXF0aGl3Y3J2b3Bka2Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4OTkyMDAsImV4cCI6MjA4NTQ3NTIwMH0.dtQWdz87vhv2ZW0aLf-K4e1sucH8g82PHacJVmse7vw',
+    authOptions: FlutterAuthClientOptions(
+      authFlowType: kIsWeb ? AuthFlowType.implicit : AuthFlowType.pkce,
+    ),
   );
 
-  // Subscribe before runApp so we never miss the passwordRecovery event.
+  // Listen for passwordRecovery events (handles mobile deep links and
+  // any cases the pre-init URL check above doesn't catch).
+  // Do NOT reset on signedIn — passwordRecoveryNotifier is only cleared
+  // after the user successfully submits a new password.
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     if (data.event == AuthChangeEvent.passwordRecovery) {
       passwordRecoveryNotifier.value = true;
-    } else if (data.event == AuthChangeEvent.signedIn) {
-      passwordRecoveryNotifier.value = false;
     }
   });
 
