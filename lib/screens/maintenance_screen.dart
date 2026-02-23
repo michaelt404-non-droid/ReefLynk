@@ -4,11 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/models/maintenance_task.dart';
 import 'package:reeflynk/models/maintenance_completion.dart';
+import 'package:reeflynk/services/auth_service.dart';
 import 'package:reeflynk/services/database_service.dart';
 import 'package:reeflynk/services/maintenance_scheduler.dart';
 import 'package:reeflynk/services/notification_service.dart';
 import 'package:reeflynk/screens/maintenance_task_form_screen.dart';
 import 'package:reeflynk/theme/app_theme.dart';
+import 'package:reeflynk/widgets/pro_upsell_sheet.dart';
 
 class MaintenanceScreen extends StatelessWidget {
   const MaintenanceScreen({super.key});
@@ -216,7 +218,13 @@ class _TaskCard extends StatelessWidget {
                 ),
               ),
               FilledButton(
-                onPressed: () => _showCompleteDialog(context),
+                onPressed: () {
+                  if (!context.read<AuthService>().isProUser) {
+                    showProUpsellSheet(context);
+                    return;
+                  }
+                  _showCompleteDialog(context);
+                },
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),

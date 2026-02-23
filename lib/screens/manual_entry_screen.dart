@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:reeflynk/services/auth_service.dart';
 import 'package:reeflynk/services/database_service.dart';
 import 'package:reeflynk/theme/app_theme.dart';
+import 'package:reeflynk/widgets/pro_upsell_sheet.dart';
 
 class ManualEntryScreen extends StatefulWidget {
   const ManualEntryScreen({super.key});
@@ -80,6 +82,13 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
         setState(() {
           _isLoading = false;
         });
+        return;
+      }
+
+      final authService = context.read<AuthService>();
+      if (!authService.isProUser) {
+        setState(() => _isLoading = false);
+        showProUpsellSheet(context);
         return;
       }
 

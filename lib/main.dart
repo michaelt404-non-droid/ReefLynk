@@ -17,7 +17,6 @@ import 'package:reeflynk/providers/lighting_provider.dart';
 import 'package:reeflynk/services/notification_service.dart';
 import 'package:reeflynk/services/maintenance_scheduler.dart';
 import 'package:reeflynk/theme/app_theme.dart';
-import 'package:reeflynk/screens/paywall_screen.dart';
 import 'package:reeflynk/screens/reset_password_screen.dart';
 import 'package:reeflynk/services/purchase_service.dart';
 
@@ -109,11 +108,9 @@ class AuthWrapper extends StatelessWidget {
         if (isRecovery) return const ResetPasswordScreen();
 
         final user = context.watch<User?>();
-        final authService = context.read<AuthService>();
 
         if (user != null) {
-          if (authService.isProUser) return const MainScreen();
-          return const PaywallScreen();
+          return const MainScreen();
         }
         return const SignInScreen();
       },

@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/models/livestock.dart';
+import 'package:reeflynk/services/auth_service.dart';
 import 'package:reeflynk/services/database_service.dart';
 import 'package:reeflynk/theme/app_theme.dart';
+import 'package:reeflynk/widgets/pro_upsell_sheet.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
@@ -97,6 +99,13 @@ class _LivestockFormScreenState extends State<LivestockFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+
+    final authService = context.read<AuthService>();
+    if (!authService.isProUser) {
+      setState(() => _isLoading = false);
+      showProUpsellSheet(context);
+      return;
+    }
 
     String? finalImagePath = _imagePath;
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reeflynk/models/maintenance_task.dart';
+import 'package:reeflynk/services/auth_service.dart';
 import 'package:reeflynk/services/database_service.dart';
 import 'package:reeflynk/services/maintenance_scheduler.dart';
 import 'package:reeflynk/services/notification_service.dart';
 import 'package:reeflynk/theme/app_theme.dart';
+import 'package:reeflynk/widgets/pro_upsell_sheet.dart';
 
 class MaintenanceTaskFormScreen extends StatefulWidget {
   final MaintenanceTask? existingTask;
@@ -66,6 +68,13 @@ class _MaintenanceTaskFormScreenState extends State<MaintenanceTaskFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+
+    final authService = context.read<AuthService>();
+    if (!authService.isProUser) {
+      setState(() => _isLoading = false);
+      showProUpsellSheet(context);
+      return;
+    }
 
     final timeStr =
         '${_preferredTime.hour.toString().padLeft(2, '0')}:${_preferredTime.minute.toString().padLeft(2, '0')}';
@@ -140,6 +149,11 @@ class _MaintenanceTaskFormScreenState extends State<MaintenanceTaskFormScreen> {
     );
 
     if (confirm != true) return;
+
+    if (!context.read<AuthService>().isProUser) {
+      showProUpsellSheet(context);
+      return;
+    }
 
     final db = Provider.of<DatabaseService>(context, listen: false);
     await db.deleteMaintenanceTask(widget.existingTask!.id!);
