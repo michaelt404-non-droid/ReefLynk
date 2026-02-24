@@ -46,3 +46,7 @@ app.*.map.json
 
 # Supabase secrets
 supabase/functions/**/*.env
+
+# Android signing keys
+*.jks
+*.keystore
