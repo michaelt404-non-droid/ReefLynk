@@ -14,12 +14,10 @@ jobs:
         run: |
           curl -sf -o /dev/null -w "ReefLynk: HTTP %{http_code}\n" \
             -H "apikey: ${{ secrets.REEFLYNK_SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.REEFLYNK_SUPABASE_ANON_KEY }}" \
-            "${{ secrets.REEFLYNK_SUPABASE_URL }}/rest/v1/"
+            "${{ secrets.REEFLYNK_SUPABASE_URL }}/auth/v1/health"
 
       - name: Ping Smart pAntrI Supabase project
         run: |
           curl -sf -o /dev/null -w "Smart pAntrI: HTTP %{http_code}\n" \
             -H "apikey: ${{ secrets.PANTRI_SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.PANTRI_SUPABASE_ANON_KEY }}" \
-            "${{ secrets.PANTRI_SUPABASE_URL }}/rest/v1/"
+            "${{ secrets.PANTRI_SUPABASE_URL }}/auth/v1/health"
