@@ -297,6 +297,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: const Icon(Icons.logout),
                           label: const Text('Sign Out'),
                         ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Delete Account'),
+                                content: const Text(
+                                  'This will permanently delete your account and all your data. This cannot be undone.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('Delete Account'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true && context.mounted) {
+                              await context.read<AuthService>().deleteAccount();
+                            }
+                          },
+                          icon: const Icon(Icons.delete_forever, color: Colors.red),
+                          label: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                          ),
+                        ),
                       ],
                     );
                   },

@@ -28,6 +28,11 @@ class AuthService {
     await _auth.signOut();
   }
 
+  Future<void> deleteAccount() async {
+    await Supabase.instance.client.rpc('delete_user');
+    await _auth.signOut();
+  }
+
   Future<void> resetPassword(String email) async {
     await _auth.resetPasswordForEmail(
       email,

@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHmac } from "https://deno.land/std@0.177.0/node/crypto.ts";
+import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
 
 // The main function that will be executed when the edge function is invoked.
 serve(async (req: Request) => {
@@ -25,7 +26,14 @@ serve(async (req: Request) => {
     const hmac = createHmac("sha256", lemonSqueezyWebhookSecret);
     const digest = hmac.update(body).digest("hex");
 
-    if (digest !== signature) {
+    const encoder = new TextEncoder();
+    const digestBytes = encoder.encode(digest);
+    const signatureBytes = encoder.encode(signature);
+
+    if (
+      digestBytes.length !== signatureBytes.length ||
+      !timingSafeEqual(digestBytes, signatureBytes)
+    ) {
       throw new Error("Invalid signature");
     }
 

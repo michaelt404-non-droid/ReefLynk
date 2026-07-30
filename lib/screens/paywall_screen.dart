@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -49,7 +51,7 @@ class PaywallScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 48),
-              if (kIsWeb)
+              if (kIsWeb || (!kIsWeb && Platform.isAndroid))
                 _buildWebCheckout(context)
               else
                 _buildNativeIAP(context),
@@ -154,6 +156,12 @@ class PaywallScreen extends StatelessWidget {
             TextButton(
               onPressed: () => purchaseService.restorePurchases(),
               child: const Text('Restore Purchase'),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ],
         );

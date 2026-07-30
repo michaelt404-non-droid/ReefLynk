@@ -1,12 +1,12 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
 
 interface MaintenanceTask {
   id: number;
   user_id: string;
   name: string;
-  frequency_value: number;
-  frequency_unit: string;
+  frequency: string;
 }
 
 interface NotificationPref {
@@ -26,6 +26,31 @@ interface NotificationLog {
 
 serve(async (req: Request) => {
   try {
+    // This function is meant to be invoked only by the scheduled cron job,
+    // not by end users — gate it behind a shared secret rather than leaving
+    // it open to anyone who finds the function URL.
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret) {
+      console.error("CRON_SECRET is not set");
+      return new Response(JSON.stringify({ error: "Not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const providedSecret = req.headers.get("X-Cron-Secret") ?? "";
+    const encoder = new TextEncoder();
+    const expectedBytes = encoder.encode(cronSecret);
+    const providedBytes = encoder.encode(providedSecret);
+    if (
+      expectedBytes.length !== providedBytes.length ||
+      !timingSafeEqual(expectedBytes, providedBytes)
+    ) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -55,7 +80,7 @@ serve(async (req: Request) => {
     // Get active maintenance tasks for these users
     const { data: tasks, error: tasksError } = await supabase
       .from("maintenance_tasks")
-      .select("id, user_id, name, frequency_value, frequency_unit")
+      .select("id, user_id, name, frequency")
       .in("user_id", userIds)
       .eq("is_active", true);
 
@@ -110,7 +135,7 @@ serve(async (req: Request) => {
         // Never completed — due now
         dueAt = 0;
       } else {
-        const freqMs = toMs(task.frequency_value, task.frequency_unit);
+        const freqMs = toMs(task.frequency);
         dueAt = new Date(lastDone).getTime() + freqMs;
       }
 
@@ -193,17 +218,19 @@ serve(async (req: Request) => {
   }
 });
 
-function toMs(value: number, unit: string): number {
-  switch (unit) {
-    case "hours":
-      return value * 60 * 60 * 1000;
-    case "days":
-      return value * 24 * 60 * 60 * 1000;
-    case "weeks":
-      return value * 7 * 24 * 60 * 60 * 1000;
-    case "months":
-      return value * 30 * 24 * 60 * 60 * 1000;
+// Mirrors the frequency options in lib/services/maintenance_scheduler.dart.
+function toMs(frequency: string): number {
+  const day = 24 * 60 * 60 * 1000;
+  switch (frequency) {
+    case "daily":
+      return day;
+    case "weekly":
+      return 7 * day;
+    case "biweekly":
+      return 14 * day;
+    case "monthly":
+      return 30 * day;
     default:
-      return value * 24 * 60 * 60 * 1000;
+      return 7 * day;
   }
 }
