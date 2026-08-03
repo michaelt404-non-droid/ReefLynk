@@ -2,8 +2,11 @@ name: Supabase Keep-Alive
 
 on:
   schedule:
-    # Every 3 days at 12:00 UTC — well under Supabase's 7-day inactivity pause window.
-    - cron: "0 12 */3 * *"
+    # Daily at 12:00 UTC — well under Supabase's 7-day inactivity pause window.
+    # Must hit a real table via PostgREST (not /auth/v1/health) — the auth
+    # health check never touches Postgres, so it doesn't count as project
+    # activity and doesn't prevent the pause.
+    - cron: "0 12 * * *"
   workflow_dispatch: {}
 
 jobs:
@@ -14,10 +17,12 @@ jobs:
         run: |
           curl -sf -o /dev/null -w "ReefLynk: HTTP %{http_code}\n" \
             -H "apikey: ${{ secrets.REEFLYNK_SUPABASE_ANON_KEY }}" \
-            "${{ secrets.REEFLYNK_SUPABASE_URL }}/auth/v1/health"
+            -H "Authorization: Bearer ${{ secrets.REEFLYNK_SUPABASE_ANON_KEY }}" \
+            "${{ secrets.REEFLYNK_SUPABASE_URL }}/rest/v1/maintenance_tasks?select=*&limit=0"
 
       - name: Ping Smart pAntrI Supabase project
         run: |
           curl -sf -o /dev/null -w "Smart pAntrI: HTTP %{http_code}\n" \
             -H "apikey: ${{ secrets.PANTRI_SUPABASE_ANON_KEY }}" \
-            "${{ secrets.PANTRI_SUPABASE_URL }}/auth/v1/health"
+            -H "Authorization: Bearer ${{ secrets.PANTRI_SUPABASE_ANON_KEY }}" \
+            "${{ secrets.PANTRI_SUPABASE_URL }}/rest/v1/products?select=*&limit=0"
