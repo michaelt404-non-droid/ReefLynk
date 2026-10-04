@@ -193,34 +193,6 @@ class _ChartsViewState extends State<_ChartsView> {
     );
   }
 
-  Stream<List<SensorReading>> _getStreamForSensor(
-      DatabaseService db, String sensorName, {Duration? duration}) {
-    switch (sensorName) {
-      case 'temperature':
-        return db.getTemperatureStream(duration: duration);
-      case 'ph':
-        return db.getPhStream(duration: duration);
-      case 'alkalinity':
-        return db.getAlkalinityStream(duration: duration);
-      case 'calcium':
-        return db.getCalciumStream(duration: duration);
-      case 'magnesium':
-        return db.getMagnesiumStream(duration: duration);
-      case 'orp':
-        return db.getOrpStream(duration: duration);
-      case 'ammonia':
-        return db.getAmmoniaStream(duration: duration);
-      case 'nitrate':
-        return db.getNitrateStream(duration: duration);
-      case 'nitrite':
-        return db.getNitriteStream(duration: duration);
-      case 'phosphate':
-        return db.getPhosphateStream(duration: duration);
-      default:
-        return Stream.value([]);
-    }
-  }
-
   Widget _buildChart(BuildContext context, String sensorName, String yAxisTitle,
       List<Color> gradientColors,
       {double? minY,
@@ -228,7 +200,7 @@ class _ChartsViewState extends State<_ChartsView> {
       double? intervalY,
       bool autoScale = false}) {
     final db = Provider.of<DatabaseService>(context, listen: false);
-    final stream = _getStreamForSensor(db, sensorName, duration: _getDuration(_selectedRange));
+    final stream = db.getChartStream(sensorName, duration: _getDuration(_selectedRange));
     final borderColor = Colors.white.withOpacity(0.10);
 
     return StreamBuilder<List<SensorReading>>(
@@ -241,7 +213,7 @@ class _ChartsViewState extends State<_ChartsView> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Data arrives newest-first; sort ascending by timestamp for chart
+        // Averaged points arrive oldest-first; sort anyway so order is guaranteed
         final readings = snapshot.data!.toList()
           ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
@@ -534,7 +506,7 @@ class _ChartsViewState extends State<_ChartsView> {
     }
 
     final db = context.read<DatabaseService>();
-    final readings = await _getStreamForSensor(db, sensorType).first;
+    final readings = await db.getAllReadings(sensorType);
 
     if (readings.isEmpty) {
       if (!context.mounted) return;

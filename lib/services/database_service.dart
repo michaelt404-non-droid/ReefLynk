@@ -21,6 +21,15 @@ class SensorReading {
       value: map['value'].toDouble(),
     );
   }
+
+  // One averaged point from sensor_readings_bucketed (not an editable row)
+  factory SensorReading.fromBucket(Map<String, dynamic> map) {
+    return SensorReading(
+      id: 0,
+      timestamp: DateTime.parse(map['bucket_time']),
+      value: (map['value'] as num).toDouble(),
+    );
+  }
 }
 
 class DatabaseService {
@@ -28,8 +37,70 @@ class DatabaseService {
 
   String? get _uid => _supabase.auth.currentUser?.id;
 
+  // Points per chart. The database averages readings into this many time
+  // buckets, so a chart never hits the 1000-row API cap however much
+  // controller data there is.
+  static const int chartPoints = 300;
+
   // Generic function to get a stream of readings for any sensor type
   Stream<List<SensorReading>> getSensorStream(String sensorType, {Duration? duration}) {
+    return _readingsStream(sensorType, (uid) async {
+      var query = _supabase
+          .from('sensor_readings')
+          .select()
+          .eq('user_id', uid)
+          .eq('sensor_type', sensorType);
+
+      if (duration != null) {
+        final cutoff = DateTime.now().subtract(duration);
+        query = query.gte('created_at', cutoff.toIso8601String());
+      }
+
+      final data = await query.order('created_at', ascending: false);
+      return data.map((item) => SensorReading.fromMap(item)).toList();
+    });
+  }
+
+  // Chart series: readings averaged into ~chartPoints buckets, oldest first
+  Stream<List<SensorReading>> getChartStream(String sensorType, {Duration? duration}) {
+    return _readingsStream(sensorType, (uid) async {
+      final data = await _supabase.rpc('sensor_readings_bucketed', params: {
+        'p_sensor_type': sensorType,
+        'p_since': duration == null
+            ? null
+            : DateTime.now().subtract(duration).toUtc().toIso8601String(),
+        'p_points': chartPoints,
+      }) as List<dynamic>;
+      return data
+          .map((item) => SensorReading.fromBucket(item as Map<String, dynamic>))
+          .toList();
+    });
+  }
+
+  // Every reading for a sensor, newest first, paged past the 1000-row cap
+  Future<List<SensorReading>> getAllReadings(String sensorType) async {
+    final uid = _uid;
+    if (uid == null) return [];
+
+    const pageSize = 1000;
+    final readings = <SensorReading>[];
+    for (var start = 0;; start += pageSize) {
+      final data = await _supabase
+          .from('sensor_readings')
+          .select()
+          .eq('user_id', uid)
+          .eq('sensor_type', sensorType)
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .range(start, start + pageSize - 1);
+      readings.addAll(data.map((item) => SensorReading.fromMap(item)));
+      if (data.length < pageSize) return readings;
+    }
+  }
+
+  // Emits fetch(uid) on listen and again whenever this user's readings change
+  Stream<List<SensorReading>> _readingsStream(
+      String sensorType, Future<List<SensorReading>> Function(String uid) fetch) {
     final uid = _uid;
     if (uid == null) {
       return Stream.value([]);
@@ -40,20 +111,7 @@ class DatabaseService {
 
     Future<void> fetchData() async {
       try {
-        var query = _supabase
-            .from('sensor_readings')
-            .select()
-            .eq('user_id', uid)
-            .eq('sensor_type', sensorType);
-
-        if (duration != null) {
-          final cutoff = DateTime.now().subtract(duration);
-          query = query.gte('created_at', cutoff.toIso8601String());
-        }
-        
-        final data = await query.order('created_at', ascending: false);
-
-        final readings = data.map((item) => SensorReading.fromMap(item)).toList();
+        final readings = await fetch(uid);
         if (!streamController.isClosed) {
           streamController.add(readings);
         }
